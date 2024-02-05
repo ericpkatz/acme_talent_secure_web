@@ -3,8 +3,6 @@ const pg = require('pg');
 const client = new pg.Client(process.env.DATABASE_URL || 'postgres://localhost/acme_talent_agency_db');
 const uuid = require('uuid');
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const JWT = process.env.JWT || 'shhhhhhh';
 
 
 const createTables = async()=> {
@@ -32,31 +30,21 @@ const createTables = async()=> {
 };
 
 const authenticate = async({ username, password })=> {
+  console.log(username);
   const SQL = `
-    SELECT id, password from users WHERE username = $1
+    SELECT id, username from users WHERE username = $1
   `;
   let response = await client.query(SQL, [username]);
+  console.log(response);
   if(!response.rows.length){
     const err = Error('bad credentials');
     err.status = 401;
     throw err;
   }
-  const valid = bcrypt.compare(password, response.rows[0].password);
-  if(!valid){
-    const err = Error('bad credentials');
-    err.status = 401;
-    throw err;
-  }
-  return jwt.sign({ id: response.rows[0].id}, JWT);
+  return response.rows[0];
 }
 
 const findUserByToken = async(token)=> {
-  const { id } = await jwt.verify(token, JWT);
-  const SQL = `
-    SELECT id, username FROM users WHERE id = $1;
-  `;
-  const response = await client.query(SQL, [id]);
-  return response.rows[0];
 }
 
 const createUser = async({ username, password })=> {
@@ -108,7 +96,7 @@ const fetchUserSkills = async(id)=> {
   return response.rows;
 }
 
-const deleteUserSkill = async(id, user_id)=> {
+const deleteUserSkill = async({ id, user_id })=> {
   const SQL = `
     DELETE FROM user_skills
     WHERE id = $1 AND user_id = $2
@@ -126,7 +114,6 @@ module.exports = {
   fetchUserSkills,
   createUserSkill,
   deleteUserSkill,
-  authenticate,
-  findUserByToken
+  authenticate
 };
 

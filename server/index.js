@@ -10,42 +10,23 @@ const {
   fetchUserSkills,
   deleteUserSkill,
   authenticate,
-  findUserByToken
 } = require('./db');
 
 const express = require('express');
 const app = express();
 app.use(express.json());
 
-const isLoggedIn = async(req, res, next)=> {
-  try{
-    const token = req.headers.authorization;
-    req.user = await findUserByToken(token);
-    next();
-  }
-  catch(ex){
-    ex.status = 401;
-    next(ex);
-  }
-};
 
 app.post('/api/auth/login', async(req, res, next)=> {
   try {
-    res.send({ token: await authenticate(req.body)});
+    console.log(req.body);
+    res.send(await authenticate(req.body));
   }
   catch(ex){
     next(ex);
   }
 });
 
-app.get('/api/auth/me', isLoggedIn, (req, res, next)=> {
-  try {
-    res.send(req.user);
-  }
-  catch(ex){
-    next(ex);
-  }
-});
 
 app.get('/api/users', async(req, res, next)=> {
   try {
@@ -74,13 +55,8 @@ app.get('/api/skills', async(req, res, next)=> {
   }
 });
 
-app.get('/api/users/:id/userSkills', isLoggedIn, async(req, res, next)=> {
+app.get('/api/users/:id/userSkills', async(req, res, next)=> {
   try {
-    if(req.params.id !== req.user.id){
-      const error = Error('token mismatch');
-      error.status = 401;
-      throw error;
-    }
     res.send(await fetchUserSkills(req.params.id));
   }
   catch(ex){
@@ -88,13 +64,8 @@ app.get('/api/users/:id/userSkills', isLoggedIn, async(req, res, next)=> {
   }
 });
 
-app.post('/api/users/:id/userSkills', isLoggedIn, async(req, res, next)=> {
+app.post('/api/users/:id/userSkills', async(req, res, next)=> {
   try {
-    if(req.params.id !== req.user.id){
-      const error = Error('token mismatch');
-      error.status = 401;
-      throw error;
-    }
     res.status(201).send(await createUserSkill({ user_id: req.params.id, skill_id: req.body.skill_id}));
   }
   catch(ex){
@@ -102,14 +73,9 @@ app.post('/api/users/:id/userSkills', isLoggedIn, async(req, res, next)=> {
   }
 });
 
-app.delete('/api/users/:userId/userSkills/:id', isLoggedIn, async(req, res, next)=> {
+app.delete('/api/users/:userId/userSkills/:id', async(req, res, next)=> {
   try {
-    if(req.params.userId !== req.user.id){
-      const error = Error('token mismatch');
-      error.status = 401;
-      throw error;
-    }
-    await deleteUserSkill(req.params.id, req.user.id);
+    await deleteUserSkill({id: req.params.id, user_id: req.params.userId});
     res.sendStatus(204);
   }
   catch(ex){
@@ -158,7 +124,7 @@ const init = async()=> {
   ]);
 
   console.log(await fetchUserSkills(moe.id));
-  await deleteUserSkill(userSkills[0].id, moe.id);
+  await deleteUserSkill({ id: userSkills[0].id, user_id: moe.id });
   console.log(await fetchUserSkills(moe.id));
 
   console.log(`CURL localhost:3000/api/users/${lucy.id}/userSkills`);

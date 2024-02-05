@@ -32,22 +32,18 @@ function App() {
   const [skills, setSkills] = useState([]);
   const [userSkills, setUserSkills] = useState([]);
   
-  useEffect(()=> {
-    const token = window.localStorage.getItem('token');
-    if(token){
-      attemptLoginWithToken();
-    }
-  }, []);
 
   useEffect(()=> {
+    const fetchUserSkills = async()=> {
+      const response = await fetch(`/api/users/${auth.id}/userSkills`);
+      if(response.ok){
+        const json = await response.json();
+        setUserSkills(json);
+      }
+
+    }
     if(auth.id){
-      fetch(`/api/users/${auth.id}/userSkills`, {
-        headers: {
-          authorization: window.localStorage.getItem('token')
-        }
-      })
-        .then( response => response.json())
-        .then( userSkills => setUserSkills(userSkills));
+      fetchUserSkills();
     }
     else {
       setUserSkills([]);
@@ -55,50 +51,34 @@ function App() {
   }, [auth]);
 
   useEffect(()=> {
-    fetch('/api/skills')
-      .then( response => response.json())
-      .then( skills => setSkills(skills));
+    const fetchSkills = async()=> {
+      const response = await fetch('/api/skills');
+      const json = await response.json();
+      setSkills(json);
+    }
+    fetchSkills();
   }, []);
 
-  const attemptLoginWithToken = ()=> {
-    const token = window.localStorage.getItem('token');
-    fetch('/api/auth/me', {
-      headers: {
-        authorization: token
-      }
-    })
-    .then(response => response.json())
-    .then(user => setAuth(user));
-  }
 
-  const login = (credentials)=> {
-    return fetch('/api/auth/login', {
+  const login = async(credentials)=> {
+    const response = await fetch('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
       headers: {
         'Content-Type': 'application/json'
       }
-    })
-    .then( response => response.json())
-    .then(({ token, error }) => {
-      if(token){
-        window.localStorage.setItem('token', token);
-        attemptLoginWithToken();
-      }
-      else {
-        throw error;
-      }
     });
+    if(response.ok){
+      const json = await response.json();
+      setAuth(json);
+    }
+    else {
+      const json = await response.json();
+      throw json.error;
+    }
   };
 
-  useEffect(()=> {
-    fetch('/api/users')
-      .then( response => response.json())
-      .then( users => console.log(users));
-  }, []);
-
   const logout = ()=> {
-    window.localStorage.removeItem('token');
     setAuth({});
   };
 
@@ -108,7 +88,6 @@ function App() {
       body: JSON.stringify({skill_id}),
       headers: {
         'Content-Type': 'application/json',
-        authorization: window.localStorage.getItem('token')
       }
     });
     if(response.ok){
@@ -119,10 +98,7 @@ function App() {
 
   const removeUserSkill = async(userSkill)=> {
     const response = await fetch(`/api/users/${auth.id}/userSkills/${userSkill.id}`,{
-      method: 'DELETE',
-      headers: {
-        authorization: window.localStorage.getItem('token')
-      }
+      method: 'DELETE'
     });
     setUserSkills(userSkills.filter(_userSkill => _userSkill.id !== userSkill.id));
   }
